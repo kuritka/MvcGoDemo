@@ -5,6 +5,9 @@ import (
 	"text/template"
 	"os"
 	"fmt"
+	"strings"
+	"bufio"
+	"MvcGoDemo/viewmodels"
 )
 
 const port = ":8080"
@@ -16,16 +19,60 @@ func main() {
 		requestFile := req.URL.Path[1:]
 		fmt.Println(requestFile)
 		lookup := templates.Lookup(requestFile + ".html")
+		var context interface {} = nil
+		if requestFile == "home" {
+			context = viewmodels.GetHome()
+		}
 		if lookup != nil {
-			lookup.Execute(w,nil)
+			lookup.Execute(w,context)
 		} else {
 			w.WriteHeader(404)
 			w.Write([]byte("404 - not found"))
 		}
 
 	})
+	http.HandleFunc("/img/",serveResource)
+	http.HandleFunc("/css/",serveResource)
 	http.ListenAndServe(port,nil)
 }
+
+func serveResource(w http.ResponseWriter, req *http.Request) {
+
+	path := "public" + req.URL.Path
+
+	var contentType string
+
+	if strings.HasSuffix(path,".css"){
+		contentType = "text/css"
+	} else if strings.HasSuffix(path,".html"){
+		contentType = "text/html"
+	} else if strings.HasSuffix(path,".js"){
+		contentType = "application/javascript"
+	}else if strings.HasSuffix(path,".png"){
+		contentType = "image/png"
+	}else if strings.HasSuffix(path,".woff"){
+		contentType = "font/woff"
+	} else if strings.HasSuffix(path,".woff2"){
+		contentType = "font/woff2"
+	} else if strings.HasSuffix(path,".appcache"){
+		contentType = "text/cache-manifest"
+	} else {
+		contentType = "text/plain"
+	}
+
+	f, err := os.Open(path)
+
+	if err == nil {
+		defer f.Close()
+		w.Header().Add("Content-Type",contentType)
+		br :=  bufio.NewReader(f)
+		br.WriteTo(w)
+	} else {
+		w.WriteHeader( 404)
+	}
+
+}
+
 
 func populateTemplates() *template.Template {
 	result :=  template.New("templates")
